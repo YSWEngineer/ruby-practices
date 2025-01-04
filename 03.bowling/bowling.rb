@@ -1,12 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-score = ARGV[0].split(',')
-shots = []
-
-score.each do |s|
-  shots << (s == 'X' ? 10 : s.to_i)
-end
+scores = ARGV[0].split(',')
+shots = scores.map { |score| score == 'X' ? 10 : score.to_i }
 
 frames = []
 current_frame = []
@@ -21,19 +17,19 @@ end
 
 frames << current_frame unless current_frame.empty?
 
-point = 0
+total_score = 0
 
-frames.each_with_index do |frame, i|
-  break if i >= 10
+frames.take(10).each_with_index do |frame, i|
+  next_frame = frames[i + 1]
+  frame_after_next = frames[i + 2]
 
   if frame[0] == 10
-    point += 10 + frames[i + 1].take(2).sum
-    point += frames[i + 2][0] if frames[i + 1]&.size == 1
+    total_score += next_frame.size == 1 ? 10 + next_frame.sum + frame_after_next[0] : 10 + next_frame.take(2).sum
   elsif frame.sum == 10
-    point += 10 + (frames[i + 1]&.first || 0)
+    total_score += 10 + next_frame.first
   else
-    point += frame.sum
+    total_score += frame.sum
   end
 end
 
-puts point
+puts total_score
