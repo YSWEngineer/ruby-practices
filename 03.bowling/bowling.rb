@@ -14,11 +14,9 @@ shots.each do |shot|
   end
 end
 
-frames << current_frame unless current_frame.empty?
-
 total_score = frames.take(10).each_with_index.sum do |frame, i|
-  next_frame = frames[i + 1] || []
-  after_next_frame = frames[i + 2] || []
+  next_frame = frames[i + 1]
+  after_next_frame = frames[i + 2]
 
   if frame.first == 10
     following_shots = next_frame + after_next_frame
