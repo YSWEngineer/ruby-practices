@@ -30,4 +30,3 @@ def print_rows(files, rows, columns, max_length)
 end
 
 print_rows(files, rows, columns, max_length(files))
-
