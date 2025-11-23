@@ -3,11 +3,11 @@
 # !/usr/bin/env ruby
 
 files = Dir.glob('*').sort
-columns = 3
-rows = (files.size.to_f / columns).ceil
+COLUMNS = 3
+rows = (files.size.to_f / COLUMNS).ceil
 
 def max_length(files)
-  files.map(&:length).max + 1
+  (files.map(&:length).max || 0) + 1
 end
 
 def build_line(files, row, rows, columns, max_length)
@@ -24,9 +24,8 @@ end
 
 def print_rows(files, rows, columns, max_length)
   rows.times do |row|
-    line = build_line(files, row, rows, columns, max_length)
-    puts line
+    puts build_line(files, row, rows, columns, max_length)
   end
 end
 
-print_rows(files, rows, columns, max_length(files))
+print_rows(files, rows, COLUMNS, max_length(files))
