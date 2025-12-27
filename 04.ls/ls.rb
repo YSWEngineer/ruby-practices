@@ -1,8 +1,21 @@
 # frozen_string_literal: true
 
 # !/usr/bin/env ruby
+require 'optparse'
 
-files = Dir.glob('*').sort
+show_hidden = false
+
+opt = OptionParser.new
+opt.on('-a') do
+  show_hidden = true
+end
+
+opt.parse!(ARGV)
+
+files = Dir.entries('.').reject { |file| ['.', '..'].include?(file) }
+files = files.reject { |file| file.start_with?('.') } unless show_hidden
+files = files.sort
+
 COLUMNS = 3
 rows = (files.size.to_f / COLUMNS).ceil
 
