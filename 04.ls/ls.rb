@@ -12,8 +12,13 @@ end
 
 opt.parse!(ARGV)
 
-files = Dir.entries('.').reject { |file| ['.', '..'].include?(file) }
-files = files.reject { |file| file.start_with?('.') } unless show_hidden
+files =
+  if show_hidden
+    Dir.glob('*', File::FNM_DOTMATCH)
+  else
+    Dir.glob('*')
+  end
+
 files = files.sort
 
 COLUMNS = 3
