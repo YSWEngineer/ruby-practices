@@ -12,12 +12,8 @@ end
 
 opt.parse!(ARGV)
 
-files =
-  if show_hidden
-    Dir.glob('*', File::FNM_DOTMATCH)
-  else
-    Dir.glob('*')
-  end
+flags = show_hidden ? File::FNM_DOTMATCH : 0
+files = Dir.glob('*', flags)
 
 files = files.sort
 
