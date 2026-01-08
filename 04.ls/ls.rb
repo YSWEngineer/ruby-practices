@@ -1,8 +1,22 @@
 # frozen_string_literal: true
 
 # !/usr/bin/env ruby
+require 'optparse'
 
-files = Dir.glob('*').sort
+show_hidden = false
+
+opt = OptionParser.new
+opt.on('-a') do
+  show_hidden = true
+end
+
+opt.parse!(ARGV)
+
+flags = show_hidden ? File::FNM_DOTMATCH : 0
+files = Dir.glob('*', flags)
+
+files = files.sort
+
 COLUMNS = 3
 rows = (files.size.to_f / COLUMNS).ceil
 
