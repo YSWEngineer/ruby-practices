@@ -4,11 +4,11 @@
 require 'optparse'
 
 show_hidden = false
+reverse = false
 
 opt = OptionParser.new
-opt.on('-a') do
-  show_hidden = true
-end
+opt.on('-a') { show_hidden = true }
+opt.on('-r') { reverse = true }
 
 opt.parse!(ARGV)
 
@@ -16,6 +16,7 @@ flags = show_hidden ? File::FNM_DOTMATCH : 0
 files = Dir.glob('*', flags)
 
 files = files.sort
+files = files.reverse if reverse
 
 COLUMNS = 3
 rows = (files.size.to_f / COLUMNS).ceil
