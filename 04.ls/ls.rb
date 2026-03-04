@@ -59,30 +59,52 @@ def print_rows(files, rows, columns, max_length)
   end
 end
 
-if show_long
-  stats = files.map { |f| File.lstat(f) }
+def fetch_stats(files)
+  files.map { |f| File.lstat(f) }
+end
 
-  total_blocks = stats.sum(&:blocks)
-  puts "total #{total_blocks}"
+def print_total(stats)
+  puts "total #{stats.sum(&:blocks)}"
+end
 
+def file_mode_string(stat)
+  type = FTYPE_TO_CHAR[stat.ftype] || '?'
+  "#{type}#{permission_string(stat.mode)}"
+end
+
+def long_format_fields(path, stat, nlink_width, size_width)
+  [
+    file_mode_string(stat),
+    stat.nlink.to_s.rjust(nlink_width),
+    Etc.getpwuid(stat.uid).name,
+    Etc.getgrgid(stat.gid).name,
+    stat.size.to_s.rjust(size_width),
+    stat.mtime.strftime('%b %e %H:%M'),
+    path
+  ]
+end
+
+def build_long_line(path, stat, nlink_width, size_width)
+  long_format_fields(path, stat, nlink_width, size_width).join(' ')
+end
+
+def column_widths(stats)
   nlink_width = stats.map { |s| s.nlink.to_s.length }.max
   size_width = stats.map { |s| s.size.to_s.length }.max
+  [nlink_width, size_width]
+end
 
+def print_long_format(files)
+  stats = fetch_stats(files)
+  print_total(stats)
+  nlink_width, size_width = column_widths(stats)
   files.each_with_index do |path, i|
-    stat = stats[i]
-    type = FTYPE_TO_CHAR[stat.ftype] || '?'
-    perm = permission_string(stat.mode)
-
-    puts [
-      "#{type}#{perm}",
-      stat.nlink.to_s.rjust(nlink_width),
-      Etc.getpwuid(stat.uid).name,
-      Etc.getgrgid(stat.gid).name,
-      stat.size.to_s.rjust(size_width),
-      stat.mtime.strftime('%b %e %H:%M'),
-      path
-    ].join(' ')
+    puts build_long_line(path, stats[i], nlink_width, size_width)
   end
+end
+
+if show_long
+  print_long_format(files)
 else
   COLUMNS = 3
   rows = (files.size.to_f / COLUMNS).ceil
