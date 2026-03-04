@@ -12,65 +12,79 @@ opt = OptionParser.new
 opt.on('-a') { show_hidden = true }
 opt.on('-r') { reverse = true }
 opt.on('-l') { show_long = true }
+
 opt.parse!(ARGV)
+
+flags = show_hidden ? File::FNM_DOTMATCH : 0
+files = Dir.glob('*', flags)
+files = files.sort
+files = files.reverse if reverse
+
+FTYPE_TO_CHAR = {
+  'file' => '-',
+  'directory' => 'd',
+  'characterSpecial' => 'c',
+  'blockSpecial' => 'b',
+  'fifo' => 'p',
+  'link' => 'l',
+  'socket' => 's'
+}.freeze
 
 def permission_string(mode)
   perm = mode.to_s(8)[-3, 3]
   table = {
-    '0' => '---', '1' => '--x', '2' => '-w-', '3' => '--x',
-    '4' => '--x', '5' => 'r-x', '6' => 'rw-', '7' => 'rwx'
+    '0' => '---', '1' => '--x', '2' => '-w-', '3' => '-wx',
+    '4' => 'r--', '5' => 'r-x', '6' => 'rw-', '7' => 'rwx'
   }
   perm.chars.map { |n| table[n] }.join
 end
 
-files = Dir.children('.')
-files.sort!
-files.reverse! if reverse
-files.reject! { |f| f.start_with?('_') } unless show_hidden
-
-unless show_long
-  files.each { |f| puts f }
-  exit
+def max_length(files)
+  (files.map(&:length).max || 0) + 1
 end
 
-stats = files.map { |path| File.lstat(path) }
+def build_line(files, row, rows, columns, max_length)
+  line = ''
+  columns.times do |column|
+    index = row + column * rows
+    name = files[index] || ''
+    line += name.ljust(max_length)
+  end
+  line
+end
 
-total_blocks = stats.sum(&:blocks)
-puts "total #{total_blocks}"
+def print_rows(files, rows, columns, max_length)
+  rows.times do |row|
+    puts build_line(files, row, rows, columns, max_length)
+  end
+end
 
-nlink_width = stats.map { |s| s.nlink.to_s.length }.max
-size_width = stats.map { |s| s.size.to_s.length }.max
-mtime_width = stats.map { |s| s.mtime.strftime('%b %e %H:%M').length }.max
+if show_long
+  stats = files.map { |f| File.lstat(f) }
 
-files.each do |path|
-  stat = File.stat(path)
+  total_blocks = stats.sum(&:blocks)
+  puts "total #{total_blocks}"
 
-  type =
-    if stat.symlink?
-      'l'
-    elsif stat.directory?
-      'd'
-    else
-      '-'
-    end
+  nlink_width = stats.map { |s| s.nlink.to_s.length }.max
+  size_width = stats.map { |s| s.size.to_s.length }.max
 
-  perm = permission_string(stat.mode)
+  files.each_with_index do |path, i|
+    stat = stats[i]
+    type = FTYPE_TO_CHAR[stat.ftype] || '?'
+    perm = permission_string(stat.mode)
 
-  nlink = stat.nlink
-  owner = Etc.getpwuid(stat.uid).name
-  group = Etc.getgrgid(stat.gid).name
-  size = stat.size
-  mtime_str = stat.mtime.strftime('%b %e %H:%M')
-
-  line = [
-    "#{type}#{perm}",
-    nlink.to_s.rjust(nlink_width),
-    owner,
-    group,
-    size.to_s.rjust(size_width),
-    mtime_str.rjust(mtime_width),
-    path
-  ].join(' ')
-
-  puts line
+    puts [
+      "#{type}#{perm}",
+      stat.nlink.to_s.rjust(nlink_width),
+      Etc.getpwuid(stat.uid).name,
+      Etc.getgrgid(stat.gid).name,
+      stat.size.to_s.rjust(size_width),
+      stat.mtime.strftime('%b %e %H:%M'),
+      path
+    ].join(' ')
+  end
+else
+  COLUMNS = 3
+  rows = (files.size.to_f / COLUMNS).ceil
+  print_rows(files, rows, COLUMNS, max_length(files))
 end
