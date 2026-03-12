@@ -30,13 +30,14 @@ FTYPE_TO_CHAR = {
   'socket' => 's'
 }.freeze
 
+PERMISSION_TABLE = {
+  '0' => '---', '1' => '--x', '2' => '-w-', '3' => '-wx',
+  '4' => 'r--', '5' => 'r-x', '6' => 'rw-', '7' => 'rwx'
+}.freeze
+
 def permission_string(mode)
   perm = mode.to_s(8)[-3, 3]
-  table = {
-    '0' => '---', '1' => '--x', '2' => '-w-', '3' => '-wx',
-    '4' => 'r--', '5' => 'r-x', '6' => 'rw-', '7' => 'rwx'
-  }
-  perm.chars.map { |n| table[n] }.join
+  perm.chars.map { |n| PERMISSION_TABLE[n] }.join
 end
 
 def max_length(files)
@@ -59,47 +60,50 @@ def print_rows(files, rows, columns, max_length)
   end
 end
 
-def fetch_stats(files)
-  files.map { |f| File.lstat(f) }
-end
-
-def print_total(stats)
-  puts "total #{stats.sum(&:blocks)}"
-end
-
 def file_mode_string(stat)
   type = FTYPE_TO_CHAR[stat.ftype] || '?'
   "#{type}#{permission_string(stat.mode)}"
 end
 
-def long_format_fields(path, stat, nlink_width, size_width)
-  [
-    file_mode_string(stat),
-    stat.nlink.to_s.rjust(nlink_width),
-    Etc.getpwuid(stat.uid).name,
-    Etc.getgrgid(stat.gid).name,
-    stat.size.to_s.rjust(size_width),
-    stat.mtime.strftime('%b %e %H:%M'),
-    path
-  ]
+def file_metadata(files)
+  files.map do |f|
+    stat = File.lstat(f)
+    {
+      mode: file_mode_string(stat),
+      nlink: stat.nlink.to_s,
+      user: Etc.getpwuid(stat.uid).name,
+      group: Etc.getgrgid(stat.gid).name,
+      size: stat.size.to_s,
+      mtime: stat.mtime.strftime('%b %e %H:%M'),
+      name: f
+    }
+  end
 end
 
-def build_long_line(path, stat, nlink_width, size_width)
-  long_format_fields(path, stat, nlink_width, size_width).join(' ')
-end
-
-def column_widths(stats)
-  nlink_width = stats.map { |s| s.nlink.to_s.length }.max
-  size_width = stats.map { |s| s.size.to_s.length }.max
-  [nlink_width, size_width]
+def widths(metadata)
+  {
+    nlink: metadata.map { |m| m[:nlink].length }.max,
+    user: metadata.map { |m| m[:user].length }.max,
+    group: metadata.map { |m| m[:group].length }.max,
+    size: metadata.map { |m| m[:size].length }.max
+  }
 end
 
 def print_long_format(files)
-  stats = fetch_stats(files)
-  print_total(stats)
-  nlink_width, size_width = column_widths(stats)
-  files.each_with_index do |path, i|
-    puts build_long_line(path, stats[i], nlink_width, size_width)
+  metadata = file_metadata(files)
+  total = metadata.sum { |m| File.lstat(m[:name]).blocks }
+  puts "total #{total}"
+  w = widths(metadata)
+  metadata.each do |m|
+    puts [
+      m[:mode],
+      m[:nlink].rjust(w[:nlink]),
+      m[:user].ljust(w[:user]),
+      m[:group].ljust(w[:group]),
+      m[:size].rjust(w[:size]),
+      m[:mtime],
+      m[:name]
+    ].join(' ')
   end
 end
 
