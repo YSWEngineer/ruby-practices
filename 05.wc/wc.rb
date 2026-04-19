@@ -2,64 +2,74 @@
 
 # !/usr/bin/env ruby
 
-def print_count(value, option_char, option_str)
-  print value.to_s.rjust(8) if option_str.empty? || option_str.include?(option_char)
+require 'optparse'
+
+def main
+  options = {}
+
+  opt = OptionParser.new
+  opt.on('-l') { options[:l] = true }
+  opt.on('-w') { options[:w] = true }
+  opt.on('-c') { options[:c] = true }
+  opt.parse!(ARGV)
+
+  filenames = ARGV
+
+  if filenames.empty?
+    process_stdin(options)
+  else
+    process_files(filenames, options)
+  end
 end
 
-def print_counts(lines, words, bytes, option_str, filename = nil)
+def print_count(value)
+  print value.to_s.rjust(8)
+end
+
+def print_counts(counts, options, filename = nil)
   [
-    [lines, 'l'],
-    [words, 'w'],
-    [bytes, 'c']
+    [counts[:lines], 'l'],
+    [counts[:words], 'w'],
+    [counts[:bytes], 'c']
   ].each do |value, option_char|
-    print_count(value, option_char, option_str)
+    print_count(value) if options.empty? || options[option_char.to_sym]
   end
   print " #{filename}" if filename
   print "\n"
 end
 
-def process_stdin(option_str)
+def count_content(content)
+  {
+    lines: content.lines.count,
+    words: content.split.size,
+    bytes: content.bytesize
+  }
+end
+
+def process_stdin(options)
   content = $stdin.read
-  lines = content.lines.count
-  words = content.split.size
-  bytes = content.bytesize
-  print_counts(lines, words, bytes, option_str)
+  counts = count_content(content)
+  print_counts(counts, options)
 end
 
 def process_file(filename)
   content = File.read(filename)
-  lines = content.lines.count
-  words = content.split.size
-  bytes = content.bytesize
-  [lines, words, bytes]
+  count_content(content)
 end
 
-def process_files(filenames, option_str)
-  total_lines = 0
-  total_words = 0
-  total_bytes = 0
+def process_files(filenames, options)
+  total = { lines: 0, words: 0, bytes: 0 }
 
   filenames.each do |filename|
-    lines, words, bytes = process_file(filename)
-    total_lines += lines
-    total_words += words
-    total_bytes += bytes
+    counts = process_file(filename)
+    total[:lines] += counts[:lines]
+    total[:words] += counts[:words]
+    total[:bytes] += counts[:bytes]
 
-    print_counts(lines, words, bytes, option_str, filename)
+    print_counts(counts, options, filename)
   end
 
-  print_counts(total_lines, total_words, total_bytes, option_str, 'total') if filenames.size > 1
-end
-
-def main
-  options, filenames = ARGV.partition { |arg| arg.start_with?('-') }
-  option_str = options.join
-
-  if filenames.empty?
-    process_stdin(option_str)
-  else
-    process_files(filenames, option_str)
-  end
+  print_counts(total, options, 'total') if filenames.size > 1
 end
 
 main
