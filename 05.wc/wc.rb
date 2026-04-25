@@ -5,24 +5,28 @@
 require 'optparse'
 
 def main
+  options, filenames = parse_arguments
+  if filenames.empty?
+    display_stdin_counts(options)
+  else
+    display_file_counts(filenames, options)
+  end
+end
+
+def parse_arguments
   options = {}
   opt = OptionParser.new
   opt.on('-l') { options[:lines] = true }
   opt.on('-w') { options[:words] = true }
   opt.on('-c') { options[:bytes] = true }
   opt.parse!(ARGV)
-  filenames = ARGV
-  if filenames.empty?
-    count_from_stdin(options)
-  else
-    display_file_counts(filenames, options)
-  end
+  [options, ARGV]
 end
 
-def count_from_stdin(options)
+def display_stdin_counts(options)
   content = $stdin.read
   counts = count_content(content)
-  print_counts(counts, options)
+  display_counts(counts, options)
 end
 
 def display_file_counts(filenames, options)
@@ -32,9 +36,9 @@ def display_file_counts(filenames, options)
     total[:lines] += counts[:lines]
     total[:words] += counts[:words]
     total[:bytes] += counts[:bytes]
-    print_counts(counts, options)
+    display_counts(counts, options)
   end
-  print_counts(total, options) if filenames.size > 1
+  display_counts(total, options) if filenames.size > 1
 end
 
 def count_from_file(filename)
@@ -51,7 +55,7 @@ def count_content(content, name = nil)
   }
 end
 
-def print_counts(counts, options)
+def display_counts(counts, options)
   %i[lines words bytes].each do |key|
     print format_count(counts[key]) if options.empty? || options[key]
   end
